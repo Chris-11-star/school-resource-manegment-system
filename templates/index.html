@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="heading">
+    <div>
+        <p class="eyebrow">YOUR SCHOOL, CONNECTED</p>
+        <h1>Hello, {{ g.user.name }}.</h1>
+        <p class="text-muted">
+            {% if g.user.role == 'teacher' %}
+                Organise learning resources and manage class requests.
+            {% else %}
+                Find what you need for your next great lesson.
+            {% endif %}
+        </p>
+    </div>
+    <span class="subject">{{ g.user.role|title }} dashboard</span>
+</div>
+
+<div class="row g-3 mb-5">
+    {% for label, value in [('Resource types', resources|length), ('Copies available', available), ('Pending requests', pending)] %}
+    <div class="col-4">
+        <div class="stats">
+            <span>{{ label }}</span>
+            <strong>{{ value }}</strong>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="heading">
+    <div>
+        <p class="eyebrow">EXPLORE &amp; LEARN</p>
+        <h2>Resource library</h2>
+        <label for="search">
+            Search resources
+            <input id="search" class="form-control" type="search" placeholder="Title or subject...">
+        </label>
+    </div>
+</div>
+
+<div class="row g-3 mb-5">
+    {% for resource in resources %}
+        <div class="col-md-6 col-xl-3 resource" data-search="{{ (resource.title ~ ' ' ~ resource.subject|lower) }}">
+            <article class="resource-card">
+                <span class="subject">{{ resource.subject }}</span>
+                <h3>{{ resource.title }}</h3>
+                <p>{{ resource.description }}</p>
+                <div class="resource-bottom">
+                    <span>{{ resource.quantity }} available</span>
+                    {% if g.user.role == 'student' %}
+                    <form method="post" action="{{ url_for('borrow', resource_id=resource.id) }}">
+                        <input type="hidden" name="token" value="{{ session.token }}">
+                        <button type="submit" class="btn btn-primary btn-sm" {% if not resource.quantity %}disabled{% endif %}>
+                            Request
+                        </button>
+                    </form>
+                    {% elif g.user.role == 'teacher' %}
+                    <form method="post" action="{{ url_for('delete_resource', resource_id=resource.id) }}"
+                          onsubmit="return confirm('Delete this resource and all of its request history?');">
+                        <input type="hidden" name="token" value="{{ session.token }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% if g.user.role == 'student' %}
+                <details class="mt-3">
+                    <summary class="text-muted small">Report an issue</summary>
+                    <form method="post" action="{{ url_for('report_issue', resource_id=resource.id) }}" class="mt-3">
+                        <input type="hidden" name="token" value="{{ session.token }}">
+                        <label class="form-label small" for="category-{{ resource.id }}">Issue type</label>
+                        <select class="form-select form-select-sm mb-2" id="category-{{ resource.id }}" name="category" required>
+                            <option value="" selected disabled>Choose an issue</option>
+                            <option value="Outdated">Outdated</option>
+                            <option value="Damaged">Damaged</option>
+                            <option value="Missing">Missing</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <label class="form-label small" for="comment-{{ resource.id }}">Details</label>
+                        <textarea class="form-control form-control-sm mb-2" id="comment-{{ resource.id }}"
+                                  name="comment" maxlength="500" rows="2" required
+                                  placeholder="Describe the issue"></textarea>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Send report</button>
+                    </form>
+                </details>
+                {% elif g.user.role == 'teacher' and issue_reports.get(resource.id) %}
+                <details class="mt-3">
+                    <summary class="text-muted small">
+                        Issue reports ({{ issue_reports[resource.id]|length }})
+                    </summary>
+                    <ul class="list-unstyled mt-2 mb-0">
+                        {% for report in issue_reports[resource.id] %}
+                        <li class="border-top py-2 small">
+                            <strong>{{ report.category }}</strong> · {{ report.name }}
+                            <p class="mb-1">{{ report.comment }}</p>
+                            <span class="text-muted">{{ report.date[:10] }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </details>
+                {% endif %}
+            </article>
+        </div>
+    {% else %}
+        <div class="col-12">
+            <p class="text-muted">No resources added yet.</p>
+        </div>
+    {% endfor %}
+</div>
+
+<p id="no-results" hidden>No resources match your search.</p>
+
+{% if g.user.role == 'teacher' %}
+    <section class="panel mb-5">
+        <h2>Add a resource</h2>
+        <p class="text-muted">Make another learning tool available to your class.</p>
+        <form action="{{ url_for('add_resource') }}" method="post" class="row g-3">
+            <input type="hidden" name="token" value="{{ session.token }}">
+            <div class="col-md-5">
+                <label class="form-label" for="title">Resource title</label>
+                <input class="form-control" id="title" name="title" maxlength="100" required>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="subject">Subject</label>
+                <input class="form-control" id="subject" name="subject" maxlength="100" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="quantity">Copies</label>
+                <input class="form-control" type="number" id="quantity" name="quantity" min="1" max="1000" value="1" required>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="description">Description</label>
+                <textarea class="form-control" id="description" name="description" maxlength="500" rows="3" required></textarea>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">Add resources</button>
+            </div>
+        </form>
+    </section>
+{% endif %}
+
+{% if g.user.role == 'teacher' %}
+    <section class="panel mb-5">
+        <h2>Add a user account</h2>
+        <p class="text-muted">Create a student or teacher login for your school.</p>
+        <form action="{{ url_for('add_user') }}" method="post" class="row g-3">
+            <input type="hidden" name="token" value="{{ session.token }}">
+            <div class="col-md-5">
+                <label class="form-label" for="new-username">Username</label>
+                <input class="form-control" id="new-username" name="username" minlength="3" maxlength="32"
+                       autocomplete="off" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="new-password">Password</label>
+                <input class="form-control" type="password" id="new-password" name="password"
+                       minlength="8" maxlength="128" autocomplete="new-password" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="new-role">Account type</label>
+                <select class="form-select" id="new-role" name="role" required>
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">Create account</button>
+            </div>
+        </form>
+    </section>
+{% endif %}
+
+<section class="panel">
+    <h2>{{ 'Class requests' if g.user.role == 'teacher' else 'My requests' }}</h2>
+    <p class="text-muted">Keep track of requests, borrowed items and returns. Approved items are due 14 days after approval.</p>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    {% if g.user.role == 'teacher' %}
+                        <th>Student</th>
+                    {% endif %}
+                    <th>Date</th>
+                    <th>Due date</th>
+                    <th>Status</th>
+                    {% if g.user.role == 'teacher' %}
+                        <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for loan in loans %}
+                <tr>
+                    <td>{{ loan.title }}</td>
+                    {% if g.user.role == 'teacher' %}
+                        <td>{{ loan.name }}</td>
+                    {% endif %}
+                    <td class="text-nowrap">{{ loan.date[:10] if loan.date else '' }}</td>
+                    <td class="text-nowrap">
+                        {% if loan.due_date %}
+                            {{ loan.due_date }}
+                            {% if loan.status == 'Approved' and loan.due_date < today %}
+                                <span class="status overdue">Overdue</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status {{ loan.status.lower() }}">{{ loan.status }}</span>
+                    </td>
+                    {% if g.user.role == 'teacher' %}
+                        <td>
+                            <div class="d-flex gap-2">
+                                {% if loan.status == 'Pending' %}
+                                    <form method="post" action="{{ url_for('update_loan', loan_id=loan.id, action='approve') }}">
+                                        <input type="hidden" name="token" value="{{ session.token }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Approve</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('update_loan', loan_id=loan.id, action='decline') }}">
+                                        <input type="hidden" name="token" value="{{ session.token }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Decline</button>
+                                    </form>
+                                {% elif loan.status == 'Approved' %}
+                                    <form method="post" action="{{ url_for('update_loan', loan_id=loan.id, action='return') }}">
+                                        <input type="hidden" name="token" value="{{ session.token }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Return</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{{ 6 if g.user.role == 'teacher' else 4 }}" class="text-muted py-4">
+                        No requests yet. Requests will appear here.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row align-items-center g-5 login-layout">
+    <section class="col-lg-7">
+        <p class="eyebrow">WELCOME TO YOUR RESOURCE CENTRE</p>
+        <h1 class="login-title">Good resources.<br>Great possibilities.</h1>
+        <p class="lead text-muted mt-4">
+            One place for the books, equipment and learning materials that help your school thrive.
+        </p>
+        <div class="intro">
+            <p>01 &nbsp; Explore your school resource library</p>
+            <p>02 &nbsp; Request the materials you need</p>
+            <p>03 &nbsp; Keep track of loans and returns</p>
+        </div>
+    </section>
+
+    <section class="col-lg-5">
+        <div class="panel">
+            <p class="eyebrow">LET'S GET STARTED</p>
+            <h2>Log in to Eduhub</h2>
+            <p class="text-muted mb-4">Use your student or teacher account.</p>
+            <form method="post">
+                <input type="hidden" name="token" value="{{ session.token }}">
+                <label class="form-label" for="username">Username</label>
+                <input class="form-control mb-3" id="username" name="username" autocomplete="username" required autofocus>
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control mb-3" id="password" name="password" type="password" autocomplete="current-password" required>
+                <button class="btn btn-primary" type="submit">Log in</button>
+            </form>
+            <p class="text-muted mt-3 mb-0">
+                New student? <a href="{{ url_for('signup') }}">Create an account</a>
+            </p>
+            <div class="demo mt-4">
+                <strong>Try the demo accounts</strong>
+                <p class="mt-2 mb-2">Student: <code>student / student123</code></p>
+                <p class="mb-0">Teacher: <code>teacher / Teacher123</code></p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
